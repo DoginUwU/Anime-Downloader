@@ -58,22 +58,22 @@ export default class Darkmahou extends Engine {
       });
     }
     this.downloadFolder = episodesDownloadDir;
-    successMessage(`Downloading in ${episodesDownloadDir}`);
-
     await sleep(5000);
 
-    await Promise.all(
-      episodesList.map(async (episode) => {
-        await sleep(1000);
-        return this.downloadTorrent(episode)
-          .then(() => {
-            successMessage(`${episode.title} downloaded!`);
-          })
-          .catch(() => {
-            errorMessage(`${episode.title} not downloaded!`);
-          });
-      })
-    );
+    while (episodesList.length) {
+      await Promise.all(
+        episodesList.splice(0, 5).map(async (episode) => {
+          await sleep(1000);
+          return this.downloadTorrent(episode)
+            .then(() => {
+              successMessage(`${episode.title} downloaded!`);
+            })
+            .catch(() => {
+              errorMessage(`${episode.title} not downloaded!`);
+            });
+        })
+      );
+    }
 
     return true;
   }
