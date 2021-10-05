@@ -17,6 +17,7 @@ export default class Darkmahou extends Engine {
     const search = await getPage(
       `https://darkmahou.com/?s=${encodeURI(this.name)}`
     );
+
     const animes = search("article")
       .toArray()
       .map((anime) => {
@@ -26,13 +27,12 @@ export default class Darkmahou extends Engine {
         };
       });
 
-    if (!animes) return errorMessage("Sorry, animes not found!");
+    if (!animes.length) return errorMessage("Sorry, animes not found!");
 
     let animeIndex = await readlineSync.keyInSelect(
       animes.map((a) => a.title),
       "choose the anime"
     );
-
     const url = animes[animeIndex].url;
     if (!url) return errorMessage("Sorry, anime url not found!");
     const page = await getPage(url);

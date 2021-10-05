@@ -18,8 +18,11 @@ export abstract class Engine {
 
   abstract init(): Promise<boolean>;
 
-  async selectEpisodes(episodes: Episode[]) {
-    if (readlineSync.keyInYN("Do you want download all episodes?")) {
+  async selectEpisodes(episodes: Episode[], skipQuestion: boolean = false) {
+    if (
+      !skipQuestion &&
+      readlineSync.keyInYN("Do you want download all episodes?")
+    ) {
       while (episodes.length) {
         await Promise.all(
           episodes.splice(0, 5).map(async (episode) => {
@@ -35,6 +38,7 @@ export abstract class Engine {
       );
       if (episodesToDownload !== -1) {
         await this.downloadEpisode(episodes[episodesToDownload]);
+        await this.selectEpisodes(episodes, true);
       } else {
         return false;
       }
@@ -54,14 +58,23 @@ export abstract class Engine {
   async downloadTorrent(episode: Episode) {
     return new Promise((resolve, reject) => {
       successMessage(`Downloading ${episode.title}...`);
+      const downloadedFiles = [];
+
       this.torrent.add(episode.url, (torrent) => {
         torrent.files.forEach((file) => {
           const path = `${this.downloadFolder}\\${file.name}`;
-          file.createReadStream().pipe(fs.createWriteStream(path));
-        });
-
-        torrent.on("done", () => {
-          resolve(torrent);
+          file
+            .createReadStream()
+            .pipe(fs.createWriteStream(path))
+            .on("finish", () => {
+              downloadedFiles.push(file);
+              if (downloadedFiles.length === torrent.files.length) {
+                resolve(torrent);
+              }
+            })
+            .on("error", (err) => {
+              reject(err);
+            });
         });
       });
 
