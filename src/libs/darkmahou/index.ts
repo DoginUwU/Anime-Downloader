@@ -38,7 +38,7 @@ export default class Darkmahou extends Engine {
     const page = await getPage(url);
     const animeTitle = page(".entry-title").text();
     successMessage(`Anime founded: ${animeTitle}...`);
-    this.name = animeTitle.replace(":", "");
+    this.name = animeTitle.replace(/[^\w\s]/gi, "");
 
     await this.getEpisodes(page);
   }
