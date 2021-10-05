@@ -1,6 +1,7 @@
 import { CheerioAPI } from "cheerio";
 import fs from "fs";
 import path from "path";
+import readlineSync from "readline-sync";
 import { errorMessage, successMessage } from "../../utils/message";
 import { sleep } from "../../utils/others";
 import { getPage } from "../../utils/page";
@@ -16,8 +17,24 @@ export default class Darkmahou extends Engine {
     const search = await getPage(
       `https://darkmahou.com/?s=${encodeURI(this.name)}`
     );
-    const url = search("article a").first().attr("href");
-    if (!url) return errorMessage("Sorry, anime not found!");
+    const animes = search("article")
+      .toArray()
+      .map((anime) => {
+        return {
+          title: search(anime).find(".ntitle").text(),
+          url: search(anime).find("a").first().attr("href"),
+        };
+      });
+
+    if (!animes) return errorMessage("Sorry, animes not found!");
+
+    let animeIndex = await readlineSync.keyInSelect(
+      animes.map((a) => a.title),
+      "choose the anime"
+    );
+
+    const url = animes[animeIndex].url;
+    if (!url) return errorMessage("Sorry, anime url not found!");
     const page = await getPage(url);
     const animeTitle = page(".entry-title").text();
     successMessage(`Anime founded: ${animeTitle}...`);
@@ -33,22 +50,16 @@ export default class Darkmahou extends Engine {
 
     episodes.each((_, episode) => {
       const title = page(episode).find("h3").first().text();
-      if (!title.includes("Episódio")) return;
       count++;
 
       const url = page(episode)
         .find(".content .soraurl .slink a")
         .first()
         .attr("href");
-      if (episode)
-        episodesList.push({
-          episode: count,
-          title,
-          url,
-        });
+
+      episodesList.push({ episode: count, title, url });
     });
     successMessage(`${episodesList.length} episodes founded...`);
-    successMessage(`Downloading in 5 seconds...`);
 
     const episodesDownloadDir = path.join(this.downloadFolder, this.name);
 
@@ -58,23 +69,10 @@ export default class Darkmahou extends Engine {
       });
     }
     this.downloadFolder = episodesDownloadDir;
-    await sleep(5000);
 
-    while (episodesList.length) {
-      await Promise.all(
-        episodesList.splice(0, 5).map(async (episode) => {
-          await sleep(1000);
-          return this.downloadTorrent(episode)
-            .then(() => {
-              successMessage(`${episode.title} downloaded!`);
-            })
-            .catch(() => {
-              errorMessage(`${episode.title} not downloaded!`);
-            });
-        })
-      );
-    }
+    successMessage(`Downloading in 3 seconds...`);
+    await sleep(3000);
 
-    return true;
+    return await this.selectEpisodes(episodesList);
   }
 }

@@ -14,14 +14,17 @@ export const desc: string = "Download your animes";
 export const builder: CommandBuilder<Options, Options> = (yargs) =>
   yargs
     .options({
-      mode: { type: "string" },
+      mode: {
+        type: "string",
+        default: "darkmahou",
+        describe: "site used to download the anime",
+      },
     })
     .positional("name", {
       type: "string",
       demandOption: true,
-      default: "darkmahou",
-      describe: "site used to download the anime",
-    });
+    })
+    .choices("mode", ["darkmahou"]);
 export const handler = async (argv: Arguments<Options>) => {
   const { name, mode = "darkmahou" } = argv;
 
