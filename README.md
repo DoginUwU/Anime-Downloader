@@ -19,7 +19,7 @@ Download an anime by name
   
 Download an anime by name with another website
 
-`--mode [darkmahou]`
+`--mode [darkmahou | keroseed | ondebaixa]`
 
 ```base
 .\anime_downloader-win.exe download <NAME> --mode <WEBSITE>
