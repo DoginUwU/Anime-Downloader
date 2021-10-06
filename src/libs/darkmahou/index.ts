@@ -33,8 +33,8 @@ export default class Darkmahou extends Engine {
       animes.map((a) => a.title),
       "choose the anime"
     );
+    if (!animes[animeIndex]) return errorMessage("Sorry, anime not found!");
     const url = animes[animeIndex].url;
-    if (!url) return errorMessage("Sorry, anime url not found!");
     const page = await getPage(url);
     const animeTitle = page(".entry-title").text();
     successMessage(`Anime founded: ${animeTitle}...`);
@@ -69,9 +69,6 @@ export default class Darkmahou extends Engine {
       });
     }
     this.downloadFolder = episodesDownloadDir;
-
-    successMessage(`Downloading in 3 seconds...`);
-    await sleep(3000);
 
     return await this.selectEpisodes(episodesList);
   }

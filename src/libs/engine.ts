@@ -11,6 +11,7 @@ export abstract class Engine {
   downloadFolder: string = path.join(os.homedir(), "Downloads");
   name: string;
   torrent = new WebTorrent();
+  progressBar: cliProgress.MultiBar | undefined;
 
   constructor(name: string) {
     this.name = name;
@@ -20,17 +21,26 @@ export abstract class Engine {
   abstract init(): Promise<boolean>;
 
   async selectEpisodes(episodes: Episode[], skipQuestion: boolean = false) {
+    this.progressBar = new cliProgress.MultiBar(
+      {
+        clearOnComplete: true,
+        hideCursor: true,
+      },
+      cliProgress.Presets.shades_grey
+    );
     if (
       !skipQuestion &&
       readlineSync.keyInYN("Do you want download all episodes?")
     ) {
-      episodes = episodes.map((episode) => {
-        if (!episode.title.includes("Torrent")) return episode;
-        return undefined;
-      });
+      episodes = episodes
+        .map((episode) => {
+          if (!episode.title.includes("Torrent")) return episode;
+          return undefined;
+        })
+        .filter(Boolean);
       while (episodes.length) {
         await Promise.all(
-          episodes.splice(0, 1).map(async (episode) => {
+          episodes.splice(0, 5).map(async (episode) => {
             await sleep(1000);
             return this.downloadEpisode(episode);
           })
@@ -51,49 +61,39 @@ export abstract class Engine {
   }
 
   async downloadEpisode(episode: Episode) {
-    return this.downloadTorrent(episode)
-      .then(() => {
-        successMessage(`${episode.title} downloaded!`);
-      })
-      .catch(() => {
-        errorMessage(`${episode.title} not downloaded!`);
-      });
+    return this.downloadTorrent(episode).catch(() => {
+      errorMessage(`${episode.title} not downloaded!`);
+    });
   }
 
   async downloadTorrent(episode: Episode) {
     return new Promise((resolve, reject) => {
-      successMessage(`Downloading ${episode.title}...`);
       const downloadedFiles = [];
-      const progressBar = new cliProgress.MultiBar(
-        {
-          clearOnComplete: true,
-          hideCursor: true,
-        },
-        cliProgress.Presets.shades_grey
-      );
+      const bar = this.progressBar.create(1, 0);
 
       this.torrent.add(episode.url, (torrent) => {
         torrent.files.forEach((file) => {
-          const bar = progressBar.create(1, 0);
           const path = `${this.downloadFolder}\\${file.name}`;
           bar.update(0);
           file
             .createReadStream()
             .pipe(fs.createWriteStream(path))
-            .on("drain", () => {
-              bar.update(file.progress);
-            })
             .on("finish", () => {
               downloadedFiles.push(file);
-              bar.stop();
               if (downloadedFiles.length === torrent.files.length) {
                 resolve(torrent);
               }
             })
             .on("error", (err) => {
-              bar.stop();
               reject(err);
             });
+        });
+
+        torrent.on("download", () => {
+          bar.update(torrent.progress);
+        });
+        torrent.on("done", () => {
+          bar.stop();
         });
       });
     });
