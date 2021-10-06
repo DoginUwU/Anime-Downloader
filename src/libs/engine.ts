@@ -6,21 +6,50 @@ import readlineSync from "readline-sync";
 import cliProgress from "cli-progress";
 import { errorMessage, successMessage } from "../utils/message";
 import { sleep } from "../utils/others";
+import { getPage } from "../utils/page";
 
+interface Anime {
+  title: string;
+  url: string;
+}
 export abstract class Engine {
   downloadFolder: string = path.join(os.homedir(), "Downloads");
   name: string;
   torrent = new WebTorrent();
   progressBar: cliProgress.MultiBar | undefined;
 
-  constructor(name: string) {
+  constructor(name: string, engineName: string) {
     this.name = name;
+    console.log(`🌎 ${engineName} init`);
     successMessage(`Searching ${name}...`);
   }
 
   abstract init(): Promise<boolean>;
 
+  async selectAnimes(animes: Anime[]) {
+    if (!animes.length) return errorMessage("Sorry, animes not found!");
+
+    let animeIndex = await readlineSync.keyInSelect(
+      animes.map((a) => a.title),
+      "choose the anime"
+    );
+    if (!animes[animeIndex]) return errorMessage("Sorry, anime not found!");
+    const url = animes[animeIndex].url;
+    return await getPage(url);
+  }
+
   async selectEpisodes(episodes: Episode[], skipQuestion: boolean = false) {
+    successMessage(`${episodes.length} episodes founded...`);
+
+    const episodesDownloadDir = path.join(this.downloadFolder, this.name);
+
+    if (!fs.existsSync(episodesDownloadDir)) {
+      fs.mkdir(episodesDownloadDir, (err) => {
+        if (err) throw err;
+      });
+    }
+    this.downloadFolder = episodesDownloadDir;
+
     this.progressBar = new cliProgress.MultiBar(
       {
         clearOnComplete: true,
